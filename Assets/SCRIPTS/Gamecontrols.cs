@@ -15,7 +15,13 @@ using UnityEngine;
 public class GameControl : MonoBehaviour
 {
     [Header("Reels")]
+    [Header("Audio")]
 
+[SerializeField]
+private AudioSource reelSpinAudio;
+
+[SerializeField]
+private AudioSource resultAudio;
     // Three reels in left-to-right order.
     [SerializeField]
     private Reels[] rows;
@@ -205,26 +211,31 @@ private void TryPullHandle()
 }
  private IEnumerator PlaySlotMachine()
 {
+    // Prevent another spin from being started while
+    // the current game round is running.
     isSpinning = true;
 
 
-    // Remove the bet from the player's balance.
+    // ---------------------------------------------------------
+    // TAKE THE BET
+    // ---------------------------------------------------------
+
     coinBalance -= selectedBet;
 
     UpdateCoinUI();
 
 
-    // Clear previous result.
+    // Clear the previous result.
     if (resultText != null)
     {
         resultText.text = "";
     }
 
 
-    // Trigger your existing LEVERPULL animation.
-    //
-    // Your Animator should have a Trigger parameter
-    // named "Pull".
+    // ---------------------------------------------------------
+    // PULL THE HANDLE
+    // ---------------------------------------------------------
+
     if (handleAnimator != null)
     {
         handleAnimator.SetTrigger(pullTriggerName);
@@ -235,66 +246,108 @@ private void TryPullHandle()
     yield return new WaitForSeconds(0.35f);
 
 
-    // ---------------------------------------------
+    // ---------------------------------------------------------
+    // START REEL AUDIO
+    // ---------------------------------------------------------
+
+    // The spinning sound starts immediately before
+    // the first reel begins moving.
+    if (reelSpinAudio != null)
+    {
+        reelSpinAudio.Play();
+    }
+
+
+    // ---------------------------------------------------------
     // REEL 1
-    // ---------------------------------------------
+    // ---------------------------------------------------------
 
     yield return StartCoroutine(
         rows[0].Spin()
     );
 
 
-    // Small pause between reel 1 and reel 2.
+    // Small delay between reel 1 and reel 2.
     yield return new WaitForSeconds(0.25f);
 
 
-    // ---------------------------------------------
+    // ---------------------------------------------------------
     // REEL 2
-    // ---------------------------------------------
+    // ---------------------------------------------------------
 
     yield return StartCoroutine(
         rows[1].Spin()
     );
 
 
-    // Small pause between reel 2 and reel 3.
+    // Small delay between reel 2 and reel 3.
     yield return new WaitForSeconds(0.25f);
 
 
-    // ---------------------------------------------
+    // ---------------------------------------------------------
     // REEL 3
-    // ---------------------------------------------
+    // ---------------------------------------------------------
 
     yield return StartCoroutine(
         rows[2].Spin()
     );
 
 
-    // All three reels are now stopped.
-    CheckResults();
+    // ---------------------------------------------------------
+    // STOP REEL AUDIO
+    // ---------------------------------------------------------
 
+    // All three reels have now stopped.
+    if (reelSpinAudio != null)
+    {
+        reelSpinAudio.Stop();
+    }
+
+
+    // ---------------------------------------------------------
+    // CHECK RESULT
+    // ---------------------------------------------------------
+
+ bool playerWon = CheckResults();
+
+
+// Only play the result sound when the player wins.
+if (playerWon && resultAudio != null)
+{
+    resultAudio.Play();
+}
+
+
+    // ---------------------------------------------------------
+    // ROUND COMPLETE
+    // ---------------------------------------------------------
 
     isSpinning = false;
 
 
-    // Require the player to select a new bet
-    // for the next spin.
+    // The old bet is finished.
+    // The player must select a new bet.
     selectedBet = 0;
-     if (betPopup != null)
+
+
+    // ---------------------------------------------------------
+    // OPEN BET POPUP FOR NEXT ROUND
+    // ---------------------------------------------------------
+
+    if (betPopup != null)
     {
         betPopup.SetActive(true);
     }
 }
-/// <summary>
-/// Checks whether all three reels contain the same symbol.
-/// </summary>
-private void CheckResults()
+private bool CheckResults()
 {
+    // Get the final symbol from each reel.
     string row1Result = rows[0].stoppedSlot;
     string row2Result = rows[1].stoppedSlot;
     string row3Result = rows[2].stoppedSlot;
 
 
+    // Display the three final symbols in the Console.
     Debug.Log(
         "RESULT: " +
         row1Result + " | " +
@@ -303,16 +356,39 @@ private void CheckResults()
     );
 
 
-    // Player wins only if all three reels match.
+    // ---------------------------------------------------------
+    // WIN CONDITION
+    // ---------------------------------------------------------
+    // The player wins only when all three reels show
+    // exactly the same symbol.
+    //
+    // Example:
+    //
+    // BAR | BAR | BAR       → WIN
+    // BELL | BELL | BELL    → WIN
+    // CHERRY | CHERRY | CHERRY → WIN
+    //
+    // BAR | BELL | BAR      → LOSS
+    // ---------------------------------------------------------
+
     if (row1Result == row2Result &&
         row2Result == row3Result)
     {
         HandleWin(row1Result);
+
+        // Tell PlaySlotMachine() that the player won.
+        return true;
     }
-    else
-    {
-        HandleLoss();
-    }
+
+
+    // ---------------------------------------------------------
+    // LOSS
+    // ---------------------------------------------------------
+
+    HandleLoss();
+
+    // Tell PlaySlotMachine() that the player lost.
+    return false;
 }
 private void HandleWin(string symbol)
 {
