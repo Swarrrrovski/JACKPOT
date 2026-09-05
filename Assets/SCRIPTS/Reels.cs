@@ -51,7 +51,24 @@ public class Reels : MonoBehaviour
     // Symbol currently occupying the result line.
     public string stoppedSlot { get; private set; } = "";
 
+// Stores the original local Y positions.
+     private float[] originalYPositions;
+ private void Start()
+{
+    // The distance from the top BAR to the duplicate bottom BAR
+    // defines one complete reel cycle.
+    reelCycleDistance =
+        startingYPositions[0] - startingYPositions[4];
+   // Store the original positions so that the reel can calculate its position during every spin.
+    originalYPositions = new float[startingYPositions.Length];
+  for (int i = 0; i < startingYPositions.Length; i++)
+    {
+        originalYPositions[i] = startingYPositions[i];
+    }
+// Make sure the reel starts in a stopped state.
+    rowStopped = true;
+// The initial center symbol is CHERRY.
+    stoppedSlot = "Cherry";
+}
 
-    // Stores the original local Y positions.
-    private float[] originalYPositions;
 }
