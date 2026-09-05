@@ -65,4 +65,60 @@ public class GameControl : MonoBehaviour
     private int selectedBet = 0;
 
     private bool isSpinning = false;
+    private void Start()
+{
+    coinBalance = startingCoins;
+
+    UpdateCoinUI();
+
+    // The player must select a bet before pulling
+    // the slot-machine handle.
+    selectedBet = 0;
+
+    if (resultText != null)
+    {
+        resultText.text = "";
+    }
+}
+public void SelectBet10()
+{
+    SelectBet(10);
+}
+
+
+public void SelectBet50()
+{
+    SelectBet(50);
+}
+
+
+public void SelectBet100()
+{
+    SelectBet(100);
+}
+public void SelectBet(int amount)
+{
+    if (isSpinning)
+    {
+        return;
+    }
+
+
+    if (amount > coinBalance)
+    {
+        resultText.text = "Not enough coins!";
+
+        return;
+    }
+
+
+    selectedBet = amount;
+
+
+    if (selectedBetText != null)
+    {
+        selectedBetText.text =
+            "BET: " + selectedBet + "G";
+    }
+}
 }
