@@ -121,4 +121,76 @@ public void SelectBet(int amount)
             "BET: " + selectedBet + "G";
     }
 }
+/// <summary>
+/// Closes the bet popup.
+///
+/// The player must press EXIT after selecting
+/// their desired bet before the handle can be pulled.
+/// </summary>
+public void CloseBetPopup()
+{
+    if (selectedBet <= 0)
+    {
+        return;
+    }
+
+
+    if (betPopup != null)
+    {
+        betPopup.SetActive(false);
+    }
+}
+private void OnMouseDown()
+{
+    TryPullHandle();
+}
+/// <summary>
+/// Checks whether the player is allowed to pull the handle.
+/// </summary>
+private void TryPullHandle()
+{
+    // Do nothing while another spin is running.
+    if (isSpinning)
+    {
+        return;
+    }
+
+
+    // Player must select a bet first.
+    if (selectedBet <= 0)
+    {
+        if (resultText != null)
+        {
+            resultText.text =
+                "Select a bet first!";
+        }
+
+        return;
+    }
+
+
+    // The popup must be closed.
+    if (betPopup != null &&
+        betPopup.activeSelf)
+    {
+        return;
+    }
+
+
+    // Make sure the player can afford the bet.
+    if (selectedBet > coinBalance)
+    {
+        if (resultText != null)
+        {
+            resultText.text =
+                "Not enough coins!";
+        }
+
+        return;
+    }
+
+
+    // Start the actual slot-machine sequence.
+    StartCoroutine(PlaySlotMachine());
+}
 }
