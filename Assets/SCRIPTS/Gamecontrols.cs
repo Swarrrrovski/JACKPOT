@@ -193,5 +193,82 @@ private void TryPullHandle()
     // Start the actual slot-machine sequence.
     StartCoroutine(PlaySlotMachine());
 }
- 
+ private IEnumerator PlaySlotMachine()
+{
+    isSpinning = true;
+
+
+    // Remove the bet from the player's balance.
+    coinBalance -= selectedBet;
+
+    UpdateCoinUI();
+
+
+    // Clear previous result.
+    if (resultText != null)
+    {
+        resultText.text = "";
+    }
+
+
+    // Trigger your existing LEVERPULL animation.
+    //
+    // Your Animator should have a Trigger parameter
+    // named "Pull".
+    if (handleAnimator != null)
+    {
+        handleAnimator.SetTrigger(pullTriggerName);
+    }
+
+
+    // Give the handle animation time to play.
+    yield return new WaitForSeconds(0.35f);
+
+
+    // ---------------------------------------------
+    // REEL 1
+    // ---------------------------------------------
+
+    yield return StartCoroutine(
+        rows[0].Spin()
+    );
+
+
+    // Small pause between reel 1 and reel 2.
+    yield return new WaitForSeconds(0.25f);
+
+
+    // ---------------------------------------------
+    // REEL 2
+    // ---------------------------------------------
+
+    yield return StartCoroutine(
+        rows[1].Spin()
+    );
+
+
+    // Small pause between reel 2 and reel 3.
+    yield return new WaitForSeconds(0.25f);
+
+
+    // ---------------------------------------------
+    // REEL 3
+    // ---------------------------------------------
+
+    yield return StartCoroutine(
+        rows[2].Spin()
+    );
+
+
+    // All three reels are now stopped.
+    CheckResults();
+
+
+    isSpinning = false;
+
+
+    // Require the player to select a new bet
+    // for the next spin.
+    selectedBet = 0;
+}
 }
