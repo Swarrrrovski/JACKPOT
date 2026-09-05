@@ -1,25 +1,49 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class Reels : MonoBehaviour
-{[SerializeField]
-private int selectedResultIndex;
+{
+    // =========================================================
+    // SYMBOL REFERENCES
+    // =========================================================
+
+    // Five physical symbols belonging to this reel.
+    //
+    // Element 0 = TOP BAR
+    // Element 1 = BELL
+    // Element 2 = CHERRY
+    // Element 3 = SEVEN
+    // Element 4 = BOTTOM DUPLICATE BAR
+    //
+    [SerializeField]
     private Transform[] symbols;
- // The names of the five symbols.
-    // The final BAR is a duplicate used for looping.
+
+
+    // =========================================================
+    // SYMBOL NAMES
+    // =========================================================
+
+    // These names correspond to the five symbol objects.
     [SerializeField]
     private string[] symbolNames =
     {
-        "Bar",
-        "Bell",
-        "Cherry",
-        "Seven",
-        "Bar"
+        "BAR",
+        "BELL",
+        "CHERRY",
+        "SEVEN",
+        "BAR"
     };
 
 
-    // Exact Y positions from your Unity scene.
+    // =========================================================
+    // SYMBOL POSITIONS
+    // =========================================================
+
+    // These are the actual local Y positions of the five
+    // positions in the reel.
+    //
+    // TOP → BOTTOM
+    //
     [SerializeField]
     private float[] startingYPositions =
     {
@@ -31,206 +55,359 @@ private int selectedResultIndex;
     };
 
 
-    // The center position of the visible result line.
+    // =========================================================
+    // RESULT POSITION
+    // =========================================================
+
+    // The selected symbol must stop at this position.
+    //
+    // In your machine this is the TOP position.
     [SerializeField]
-    private float resultLineY = 0.5110874f;
+    private float resultLineY = 3.25f;
 
 
-    // Bottom position of the reel.
+    // Lowest point of the reel.
     [SerializeField]
     private float bottomY = -2.366158f;
 
 
-    // Distance between the first BAR and the duplicate BAR.
+    // Distance from the top position to the bottom
+    // duplicate position.
     private float reelCycleDistance;
 
 
-    // True when this reel has completed its spin.
+    // =========================================================
+    // REEL STATE
+    // =========================================================
+
+    // True when the reel is not spinning.
     public bool rowStopped { get; private set; } = true;
 
 
-    // Symbol currently occupying the result line.
-    public string stoppedSlot { get; private set; } = "";
+    // Symbol currently occupying the result position.
+    public string stoppedSlot { get; private set; }
 
-// Stores the original local Y positions.
-     private float[] originalYPositions;
- private void Start()
-{
-    // The distance from the top BAR to the duplicate bottom BAR
-    // defines one complete reel cycle.
-    reelCycleDistance =
-        startingYPositions[0] - startingYPositions[4];
-   // Store the original positions so that the reel can calculate its position during every spin.
-    originalYPositions = new float[startingYPositions.Length];
-  for (int i = 0; i < startingYPositions.Length; i++)
+
+    // Randomly selected symbol index.
+    private int selectedResultIndex;
+
+
+    // =========================================================
+    // START
+    // =========================================================
+
+    private void Start()
     {
-        originalYPositions[i] = startingYPositions[i];
-    }
-// Make sure the reel starts in a stopped state.
-    rowStopped = true;
-// The initial center symbol is CHERRY.
-    stoppedSlot = "Cherry";
-}
-public IEnumerator Spin()
-{
-    rowStopped = false;
-    stoppedSlot = "";
+        // -----------------------------------------------------
+        // VALIDATE SYMBOL ARRAY
+        // -----------------------------------------------------
 
-
-    // There are four real outcomes:
-    //
-    // 0 = Bar
-    // 1 = Bell
-    // 2 = Cherry
-    // 3 = Seven
-    //
-    // The fifth BAR is only a duplicate used for looping.
-    selectedResultIndex = Random.Range(0, 4);
-
-
-    // Choose how many complete rotations happen
-    // before the reel begins stopping.
-    int randomCycles = Random.Range(7, 11);
-
-
-    // Calculate the distance required to place the
-    // selected symbol exactly on the center result line.
-  float distanceToResult =
-    Mathf.Repeat(
-        startingYPositions[selectedResultIndex] - resultLineY,
-        reelCycleDistance
-    );
-
-
-    float totalDistance =
-        distanceToResult +
-        (randomCycles * reelCycleDistance);
-
-
-    yield return StartCoroutine(
-        SpinReel(totalDistance)
-    );
-}
-private IEnumerator SpinReel(float totalDistance)
-{
-    float distanceTravelled = 0f;
-
-    // How long the entire reel spin should take.
-    float spinDuration = 2.0f;
-
-    float elapsedTime = 0f;
-
-
-    while (elapsedTime < spinDuration)
-    {
-        elapsedTime += Time.deltaTime;
-
-
-        // Convert elapsed time into a 0-1 value.
-        float progress =
-            Mathf.Clamp01(elapsedTime / spinDuration);
-
-
-        // SmoothStep gives us acceleration at the beginning
-        // and deceleration near the end.
-        float smoothProgress =
-            Mathf.SmoothStep(0f, 1f, progress);
-
-
-        distanceTravelled =
-            Mathf.Lerp(
-                0f,
-                totalDistance,
-                smoothProgress
+        if (symbols == null || symbols.Length != 5)
+        {
+            Debug.LogError(
+                gameObject.name +
+                " must have exactly 5 symbols assigned."
             );
 
-
-        MoveSymbols(distanceTravelled);
-
-
-        yield return null;
-    }
-
-
-    // Make absolutely sure we finish at the exact
-    // calculated distance rather than a frame-dependent value.
-    MoveSymbols(totalDistance);
-
-
-    SetFinalPositions(totalDistance);
-
-
-    rowStopped = true;
-}
-private void MoveSymbols(float distanceTravelled)
-{
-    float cycleOffset =
-        distanceTravelled % reelCycleDistance;
-
-
-    for (int i = 0; i < symbols.Length; i++)
-    {
-        float newY =
-            originalYPositions[i] - cycleOffset;
-
-
-        // If the symbol has moved below the reel,
-        // wrap it back to the top.
-        while (newY < bottomY)
-        {
-            newY += reelCycleDistance;
+            return;
         }
 
 
-        Vector3 position =
-            symbols[i].localPosition;
+        // Make sure every element has a Transform.
+        for (int i = 0; i < symbols.Length; i++)
+        {
+            if (symbols[i] == null)
+            {
+                Debug.LogError(
+                    gameObject.name +
+                    " has a missing symbol at Element " +
+                    i
+                );
 
-        position.y = newY;
+                return;
+            }
+        }
 
-        symbols[i].localPosition = position;
+
+        // -----------------------------------------------------
+        // CALCULATE REEL CYCLE
+        // -----------------------------------------------------
+
+        reelCycleDistance =
+            startingYPositions[0]
+            - startingYPositions[4];
+
+
+        // -----------------------------------------------------
+        // INITIAL RESULT
+        // -----------------------------------------------------
+
+        rowStopped = true;
+
+        stoppedSlot = symbolNames[0];
     }
-}
-private void SetFinalPositions(float totalDistance)
-{
-    // Determine which of the four real symbols was selected.
-    int resultIndex = GetResultIndex(totalDistance);
 
 
-    // Calculate the exact distance needed for that
-    // symbol to occupy the result line.
-    float resultDistance =
-        Mathf.Repeat(
-            startingYPositions[resultIndex] - resultLineY,
-            reelCycleDistance
+    // =========================================================
+    // PUBLIC SPIN FUNCTION
+    // =========================================================
+
+    public IEnumerator Spin()
+    {
+        rowStopped = false;
+
+        stoppedSlot = "";
+
+
+        // -----------------------------------------------------
+        // SELECT RANDOM RESULT
+        // -----------------------------------------------------
+
+        // 0 = BAR
+        // 1 = BELL
+        // 2 = CHERRY
+        // 3 = SEVEN
+        //
+        // Element 4 is the duplicate BAR and is not randomly
+        // selected because it exists only to make the reel loop.
+        //
+        selectedResultIndex =
+            Random.Range(0, 4);
+
+
+        Debug.Log(
+            "[" + gameObject.name + "] " +
+            "RNG selected: " +
+            symbolNames[selectedResultIndex]
         );
 
 
-    for (int i = 0; i < symbols.Length; i++)
-    {
-        float newY =
-            startingYPositions[i] - resultDistance;
+        // -----------------------------------------------------
+        // NUMBER OF FULL SPINS
+        // -----------------------------------------------------
+
+        int randomCycles =
+            Random.Range(7, 11);
 
 
-        while (newY < bottomY)
-        {
-            newY += reelCycleDistance;
-        }
+        // -----------------------------------------------------
+        // CALCULATE DISTANCE
+        // -----------------------------------------------------
+
+        // Calculate the distance required for the selected
+        // symbol to reach the TOP position.
+        //
+        // We use modulo so that the reel can make several
+        // complete rotations first.
+        //
+        float distanceToResult =
+            Mathf.Repeat(
+                startingYPositions[selectedResultIndex]
+                - resultLineY,
+                reelCycleDistance
+            );
 
 
-        Vector3 position =
-            symbols[i].localPosition;
+        float totalDistance =
+            randomCycles * reelCycleDistance
+            + distanceToResult;
 
-        position.y = newY;
 
-        symbols[i].localPosition = position;
+        Debug.Log(
+            "[" + gameObject.name + "] " +
+            "Spin distance: " +
+            totalDistance
+        );
+
+
+        // -----------------------------------------------------
+        // START ANIMATION
+        // -----------------------------------------------------
+
+        yield return StartCoroutine(
+            SpinReel(totalDistance)
+        );
     }
 
 
-    stoppedSlot =
-        symbolNames[resultIndex];
-}
-private int GetResultIndex(float totalDistance)
-{
-    return selectedResultIndex;
-}
+    // =========================================================
+    // SPIN ANIMATION
+    // =========================================================
+
+    private IEnumerator SpinReel(float totalDistance)
+    {
+        float spinDuration = 2f;
+
+        float elapsed = 0f;
+
+
+        while (elapsed < spinDuration)
+        {
+            elapsed += Time.deltaTime;
+
+
+            // Convert elapsed time into 0 → 1.
+            float progress =
+                Mathf.Clamp01(
+                    elapsed / spinDuration
+                );
+
+
+            // Smooth acceleration and deceleration.
+            float smoothProgress =
+                Mathf.SmoothStep(
+                    0f,
+                    1f,
+                    progress
+                );
+
+
+            // Calculate current distance.
+            float distanceTravelled =
+                Mathf.Lerp(
+                    0f,
+                    totalDistance,
+                    smoothProgress
+                );
+
+
+            // Move the symbols.
+            MoveSymbols(distanceTravelled);
+
+
+            yield return null;
+        }
+
+
+        // -----------------------------------------------------
+        // FINAL POSITION
+        // -----------------------------------------------------
+
+        // Don't rely on the animation's final floating-point
+        // position.
+        //
+        // Explicitly arrange the symbols.
+        SetFinalPositions();
+
+
+        rowStopped = true;
+
+
+        Debug.Log(
+            "[" + gameObject.name + "] " +
+            "STOPPED ON: " +
+            stoppedSlot
+        );
+    }
+
+
+    // =========================================================
+    // MOVE SYMBOLS DURING SPIN
+    // =========================================================
+
+    private void MoveSymbols(float distanceTravelled)
+    {
+        float cycleOffset =
+            Mathf.Repeat(
+                distanceTravelled,
+                reelCycleDistance
+            );
+
+
+        for (int i = 0; i < symbols.Length; i++)
+        {
+            // Move the symbol down.
+            float newY =
+                startingYPositions[i]
+                - cycleOffset;
+
+
+            // If the symbol goes below the bottom,
+            // bring it back to the top.
+            while (newY < bottomY)
+            {
+                newY += reelCycleDistance;
+            }
+
+
+            Vector3 position =
+                symbols[i].localPosition;
+
+
+            position.y = newY;
+
+
+            symbols[i].localPosition =
+                position;
+        }
+    }
+
+
+    // =========================================================
+    // FINAL STOPPING ARRANGEMENT
+    // =========================================================
+
+    private void SetFinalPositions()
+    {
+        // -----------------------------------------------------
+        // POSITION EACH SYMBOL IN THE CORRECT SLOT
+        // -----------------------------------------------------
+
+        for (int i = 0; i < symbols.Length; i++)
+        {
+            // Calculate which symbol should occupy this
+            // physical position.
+            //
+            // Example:
+            //
+            // selectedResultIndex = 2
+            //
+            // Then:
+            //
+            // position 0 → CHERRY
+            // position 1 → SEVEN
+            // position 2 → BAR
+            // position 3 → BAR
+            // position 4 → BELL
+            //
+            int symbolIndex =
+                (selectedResultIndex + i)
+                % symbols.Length;
+
+
+            Vector3 position =
+                symbols[symbolIndex].localPosition;
+
+
+            // Put this symbol into the corresponding
+            // physical reel position.
+            position.y =
+                startingYPositions[i];
+
+
+            symbols[symbolIndex].localPosition =
+                position;
+        }
+
+
+        // -----------------------------------------------------
+        // SAVE THE RESULT
+        // -----------------------------------------------------
+
+        stoppedSlot =
+            symbolNames[selectedResultIndex];
+
+
+        // -----------------------------------------------------
+        // DEBUG VERIFICATION
+        // -----------------------------------------------------
+
+        Debug.Log(
+            "[" + gameObject.name + "] " +
+            "FINAL SYMBOL = " +
+            stoppedSlot +
+            " at Y = " +
+            symbols[selectedResultIndex].localPosition.y
+        );
+    }
 }

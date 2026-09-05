@@ -71,16 +71,26 @@ public class GameControl : MonoBehaviour
 
     UpdateCoinUI();
 
-    // The player must select a bet before pulling
-    // the slot-machine handle.
+    // No bet has been selected yet.
     selectedBet = 0;
+
+    // Show the betting popup immediately when the game starts.
+    if (betPopup != null)
+    {
+        betPopup.SetActive(true);
+    }
 
     if (resultText != null)
     {
         resultText.text = "";
     }
+
+    if (selectedBetText != null)
+    {
+        selectedBetText.text = "BET: 0G";
+    }
 }
-public void SelectBet10()
+   public void SelectBet10()
 {
     SelectBet(10);
 }
@@ -270,5 +280,100 @@ private void TryPullHandle()
     // Require the player to select a new bet
     // for the next spin.
     selectedBet = 0;
+     if (betPopup != null)
+    {
+        betPopup.SetActive(true);
+    }
+}
+/// <summary>
+/// Checks whether all three reels contain the same symbol.
+/// </summary>
+private void CheckResults()
+{
+    string row1Result = rows[0].stoppedSlot;
+    string row2Result = rows[1].stoppedSlot;
+    string row3Result = rows[2].stoppedSlot;
+
+
+    Debug.Log(
+        "RESULT: " +
+        row1Result + " | " +
+        row2Result + " | " +
+        row3Result
+    );
+
+
+    // Player wins only if all three reels match.
+    if (row1Result == row2Result &&
+        row2Result == row3Result)
+    {
+        HandleWin(row1Result);
+    }
+    else
+    {
+        HandleLoss();
+    }
+}
+private void HandleWin(string symbol)
+{
+    int multiplier = GetMultiplier(symbol);
+
+    int winnings =
+        selectedBet * multiplier;
+
+
+    coinBalance += winnings;
+
+
+    if (resultText != null)
+    {
+        resultText.text =
+            "WIN! " +
+            symbol +
+            " +" +
+            winnings +
+            "G";
+    }
+
+
+    UpdateCoinUI();
+}
+private int GetMultiplier(string symbol)
+{
+    switch (symbol)
+    {
+        case "Bar":
+            return 2;
+
+        case "Bell":
+            return 5;
+
+        case "Cherry":
+            return 10;
+
+        case "Seven":
+            return 20;
+
+        default:
+            return 0;
+    }
+}
+private void HandleLoss()
+{
+    if (resultText != null)
+    {
+        resultText.text = "NO WIN";
+    }
+
+    UpdateCoinUI();
+}
+private void UpdateCoinUI()
+{
+    if (coinText != null)
+    {
+        coinText.text =
+            "COINS (G): " +
+            coinBalance;
+    }
 }
 }
